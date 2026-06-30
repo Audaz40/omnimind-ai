@@ -167,7 +167,7 @@ export const Route = createFileRoute("/api/chat")({
         const result = streamText({
           model,
           system: SYSTEM_BASE + (agentMode ? AGENT_ADDENDUM : ""),
-          messages: convertToModelMessages(messages),
+          messages: await convertToModelMessages(messages),
           tools,
           stopWhen: stepCountIs(50),
         });

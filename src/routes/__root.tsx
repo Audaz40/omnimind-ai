@@ -81,7 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "An advanced AI mode that thinks, plans, and acts. Free." },
       { name: "author", content: "NOVA" },
       { property: "og:title", content: "NOVA · AI Mode, supercharged" },
-      { property: "og:description", content: "An advanced AI mode that thinks, plans, and acts. Free." },
+      {
+        property: "og:description",
+        content: "An advanced AI mode that thinks, plans, and acts. Free.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },

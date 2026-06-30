@@ -55,25 +55,29 @@ export function Sidebar() {
     <aside className="w-72 shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border">
       <div className="p-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="size-8 rounded-xl bg-gradient-ai shadow-glow flex items-center justify-center">
-            <Sparkles className="size-4 text-white" />
+          <div className="size-8 rounded-xl bg-muted flex items-center justify-center">
+            <Sparkles className="size-4 text-primary" />
           </div>
           <span className="font-semibold tracking-tight">NOVA</span>
         </Link>
       </div>
       <div className="px-3">
-        <Button onClick={onNew} className="w-full bg-gradient-ai text-white border-0 shadow-glow">
+        <Button onClick={onNew} className="w-full bg-primary text-primary-foreground border-0">
           <Plus className="size-4 mr-1" /> New chat
         </Button>
       </div>
       <div className="mt-4 px-2 flex-1 overflow-y-auto">
-        <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-1">Recent</div>
+        <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-1">
+          Recent
+        </div>
         <div className="space-y-0.5">
           {threads.map((t) => (
             <div
               key={t.id}
               className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-sidebar-accent text-sm ${
-                activeId === t.id ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground"
+                activeId === t.id
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground"
               }`}
             >
               <Link
@@ -94,12 +98,18 @@ export function Sidebar() {
             </div>
           ))}
           {threads.length === 0 && (
-            <div className="text-xs text-sidebar-foreground/50 px-2 py-4 text-center">No chats yet</div>
+            <div className="text-xs text-sidebar-foreground/50 px-2 py-4 text-center">
+              No chats yet
+            </div>
           )}
         </div>
       </div>
       <div className="p-3 border-t border-sidebar-border">
-        <Button variant="ghost" onClick={onLogout} className="w-full justify-start text-sidebar-foreground">
+        <Button
+          variant="ghost"
+          onClick={onLogout}
+          className="w-full justify-start text-sidebar-foreground"
+        >
           <LogOut className="size-4 mr-2" /> Sign out
         </Button>
       </div>

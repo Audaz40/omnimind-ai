@@ -27,7 +27,7 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     id: threadId,
-    messages: initialMessages,
+    messages: initialMessages ?? [],
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: () => ({ agentMode, threadId }),
@@ -88,17 +88,21 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <header className="h-14 border-b flex items-center justify-between px-5">
-        <div className="flex items-center gap-2">
-          <div className="size-7 rounded-lg bg-gradient-ai flex items-center justify-center">
-            <Sparkles className="size-3.5 text-white" />
+      <header className="h-14 border-b flex items-center justify-between px-5 bg-background">
+        <div className="flex items-center gap-3">
+          <div className="size-7 rounded-lg bg-muted flex items-center justify-center">
+            <Sparkles className="size-3.5 text-primary" />
           </div>
-          <span className="font-semibold">NOVA</span>
-          <span className="text-xs text-muted-foreground ml-2">Gemini 3 Flash</span>
+          <div>
+            <div className="font-semibold">NOVA</div>
+            <div className="text-xs text-muted-foreground">Gemini 3 Flash</div>
+          </div>
         </div>
         <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
           <Zap className={`size-4 ${agentMode ? "text-primary" : "text-muted-foreground"}`} />
-          <span className={agentMode ? "text-foreground" : "text-muted-foreground"}>Agent mode</span>
+          <span className={agentMode ? "text-foreground" : "text-muted-foreground"}>
+            Agent mode
+          </span>
           <Switch checked={agentMode} onCheckedChange={toggleAgent} />
         </label>
       </header>
@@ -107,14 +111,16 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
         <div className="max-w-3xl mx-auto px-5 py-8 space-y-8">
           {messages.length === 0 && (
             <div className="text-center py-20">
-              <div className="size-16 mx-auto rounded-3xl bg-gradient-ai shadow-glow flex items-center justify-center">
-                <Sparkles className="size-7 text-white" />
+              <div className="size-16 mx-auto rounded-3xl bg-muted flex items-center justify-center">
+                <Sparkles className="size-7 text-primary" />
               </div>
               <h2 className="mt-6 text-3xl font-semibold tracking-tight">
                 How can I help you today?
               </h2>
               <p className="mt-2 text-muted-foreground">
-                {agentMode ? "Agent mode is on — I can search the web, fetch URLs, plan and execute." : "Ask anything. Turn on Agent mode for web search & multi-step tasks."}
+                {agentMode
+                  ? "Agent mode is on — I can search the web, fetch URLs, plan and execute."
+                  : "Ask anything. Turn on Agent mode for web search & multi-step tasks."}
               </p>
               <div className="mt-8 grid sm:grid-cols-2 gap-2 text-left">
                 {[
@@ -125,7 +131,10 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
                 ].map((p) => (
                   <button
                     key={p}
-                    onClick={() => { setInput(p); taRef.current?.focus(); }}
+                    onClick={() => {
+                      setInput(p);
+                      taRef.current?.focus();
+                    }}
                     className="rounded-xl border p-3 text-sm hover:bg-accent text-muted-foreground hover:text-foreground transition text-left"
                   >
                     {p}
@@ -143,7 +152,9 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
             <div className="flex items-start gap-3">
               <Avatar role="assistant" />
               <div className="dot-pulse text-muted-foreground pt-2 text-2xl leading-none">
-                <span>·</span><span>·</span><span>·</span>
+                <span>·</span>
+                <span>·</span>
+                <span>·</span>
               </div>
             </div>
           )}
@@ -158,7 +169,10 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmit(); }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSubmit();
+                }
               }}
               placeholder={agentMode ? "Ask NOVA to research, plan, or build…" : "Message NOVA…"}
               rows={1}
@@ -170,7 +184,12 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
                   <Square className="size-4" />
                 </Button>
               ) : (
-                <Button type="submit" size="icon" disabled={!input.trim()} className="bg-gradient-ai text-white border-0 shadow-glow">
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!input.trim()}
+                  className="bg-primary text-primary-foreground border-0"
+                >
                   <Send className="size-4" />
                 </Button>
               )}
@@ -189,13 +208,13 @@ function Avatar({ role }: { role: "user" | "assistant" | "system" }) {
   if (role === "user") {
     return (
       <div className="size-8 shrink-0 rounded-full bg-secondary flex items-center justify-center">
-        <UserIcon className="size-4" />
+        <UserIcon className="size-4 text-primary" />
       </div>
     );
   }
   return (
-    <div className="size-8 shrink-0 rounded-full bg-gradient-ai shadow-glow flex items-center justify-center">
-      <Bot className="size-4 text-white" />
+    <div className="size-8 shrink-0 rounded-full bg-muted flex items-center justify-center">
+      <Bot className="size-4 text-primary" />
     </div>
   );
 }
@@ -223,7 +242,10 @@ function MessageView({ message }: { message: UIMessage }) {
         {parts.map((p, i) => {
           if (p.type === "text") {
             return isUser ? (
-              <div key={i} className="inline-block rounded-2xl bg-primary text-primary-foreground px-4 py-2 whitespace-pre-wrap">
+              <div
+                key={i}
+                className="inline-block rounded-2xl bg-primary text-primary-foreground px-4 py-2 whitespace-pre-wrap"
+              >
                 {p.text}
               </div>
             ) : (
@@ -232,7 +254,15 @@ function MessageView({ message }: { message: UIMessage }) {
           }
           if (p.type?.startsWith("tool-")) {
             const name = p.type.replace(/^tool-/, "");
-            return <ToolPart key={i} name={name} state={p.state ?? ""} input={p.input} output={p.output} />;
+            return (
+              <ToolPart
+                key={i}
+                name={name}
+                state={p.state ?? ""}
+                input={p.input}
+                output={p.output}
+              />
+            );
           }
           if (p.type === "reasoning" && p.text) {
             return (

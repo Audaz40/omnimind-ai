@@ -41,7 +41,16 @@ export function Markdown({ content }: { content: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
+          code({
+            inline,
+            className,
+            children,
+            ...props
+          }: {
+            inline?: boolean;
+            className?: string;
+            children?: React.ReactNode;
+          }) {
             const match = /language-(\w+)/.exec(className || "");
             const value = String(children ?? "");
             if (!inline && (match || value.includes("\n"))) {

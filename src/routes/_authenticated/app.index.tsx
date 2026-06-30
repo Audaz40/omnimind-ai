@@ -17,7 +17,9 @@ function AppIndex() {
     if (ran.current) return;
     ran.current = true;
     create({ data: {} })
-      .then(({ id }) => navigate({ to: "/app/c/$threadId", params: { threadId: id }, replace: true }))
+      .then(({ id }) =>
+        navigate({ to: "/app/c/$threadId", params: { threadId: id }, replace: true }),
+      )
       .catch(() => {});
   }, [create, navigate]);
 

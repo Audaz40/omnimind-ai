@@ -1,19 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  convertToModelMessages,
-  streamText,
-  stepCountIs,
-  tool,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, streamText, stepCountIs, type UIMessage } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
-
-type Body = {
-  messages?: UIMessage[];
-  agentMode?: boolean;
-  threadId?: string;
-};
+import { getAvailableTools } from "@/lib/plugin-system.server";
+import { checkRateLimit, getRateLimitKey } from "@/lib/rate-limit.server";
+import { get as getCache, set as setCache, getCacheKey } from "@/lib/cache.server";
+import { Errors, createErrorResponse, logInfo, logError } from "@/lib/errors.server";
 
 const SYSTEM_BASE = `You are NOVA, an advanced AI assistant inspired by Google's AI Mode but significantly enhanced.
 
@@ -40,141 +32,135 @@ Workflow for complex tasks:
 3. Synthesize a final answer that references what you found.
 Always finish with a clear, written answer for the user.`;
 
-async function ddgSearch(query: string) {
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (compatible; NovaAI/1.0; +https://lovable.dev)",
-    },
-  });
-  const html = await res.text();
-  const results: { title: string; url: string; snippet: string }[] = [];
-  const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) && results.length < 6) {
-    const strip = (s: string) =>
-      s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    let href = m[1];
-    try {
-      const u = new URL(href, "https://duckduckgo.com");
-      const real = u.searchParams.get("uddg");
-      if (real) href = decodeURIComponent(real);
-    } catch {
-      /* noop */
-    }
-    results.push({
-      title: strip(m[2]),
-      url: href,
-      snippet: strip(m[3]),
-    });
+interface ValidatedRequest {
+  messages: UIMessage[];
+  agentMode: boolean;
+  threadId: string;
+}
+
+function getMessagesFromPayload(payload: unknown): UIMessage[] | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const body = payload as Record<string, unknown>;
+  if (Array.isArray(body.messages)) return body.messages as UIMessage[];
+  const nested = body.body;
+  if (
+    nested &&
+    typeof nested === "object" &&
+    Array.isArray((nested as Record<string, unknown>).messages)
+  ) {
+    return (nested as Record<string, unknown>).messages as UIMessage[];
   }
-  return results;
+  return undefined;
+}
+
+function validateRequest(payload: unknown): ValidatedRequest {
+  if (!payload || typeof payload !== "object") {
+    throw Errors.invalidRequest("Invalid request payload");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const messages = getMessagesFromPayload(payload);
+  const agentMode = (body.agentMode as boolean) ?? false;
+  const threadId = (body.threadId as string) ?? "";
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    throw Errors.validation("Messages required and must not be empty");
+  }
+
+  if (!threadId || typeof threadId !== "string") {
+    throw Errors.validation("Valid threadId required");
+  }
+
+  // Basic thread ID format validation
+  try {
+    z.string().uuid().parse(threadId);
+  } catch {
+    throw Errors.validation("Invalid threadId format");
+  }
+
+  return { messages, agentMode, threadId };
 }
 
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { messages, agentMode } = (await request.json()) as Body;
-        if (!Array.isArray(messages)) {
-          return new Response("Messages required", { status: 400 });
+        try {
+          const startTime = Date.now();
+          const payload = await request.json().catch(() => ({}));
+
+          // Validate request
+          const { messages, agentMode, threadId } = validateRequest(payload);
+
+          // Extract user ID from header (set by auth middleware)
+          const userId =
+            request.headers.get("x-user-id") || request.headers.get("authorization")?.split(" ")[1];
+
+          if (!userId) {
+            return createErrorResponse(Errors.auth("User ID required"), 401);
+          }
+
+          // Rate limiting
+          const rateLimitKey = getRateLimitKey(userId, "/api/chat");
+          const rateLimitResult = checkRateLimit(rateLimitKey, {
+            maxRequests: 30,
+            windowMs: 60 * 1000,
+          });
+
+          if (!rateLimitResult.allowed) {
+            logInfo("Rate limit exceeded", { userId, key: rateLimitKey });
+            return createErrorResponse(Errors.rateLimited(rateLimitResult.resetIn), 429);
+          }
+
+          const key = process.env.LOVABLE_API_KEY;
+          if (!key) {
+            return createErrorResponse(Errors.internal("Missing LOVABLE_API_KEY"));
+          }
+
+          const gateway = createLovableAiGatewayProvider(key);
+          const model = gateway("google/gemini-3-flash-preview");
+
+          // Get available tools from plugin system
+          const tools = getAvailableTools(agentMode);
+
+          logInfo("Chat request", {
+            userId,
+            threadId,
+            messageCount: messages.length,
+            agentMode,
+            rateLimitRemaining: rateLimitResult.remaining,
+          });
+
+          const result = streamText({
+            model,
+            system: SYSTEM_BASE + (agentMode ? AGENT_ADDENDUM : ""),
+            messages: await convertToModelMessages(messages),
+            tools: Object.keys(tools).length > 0 ? tools : undefined,
+            stopWhen: stepCountIs(50),
+          });
+
+          const response = result.toUIMessageStreamResponse({
+            originalMessages: messages,
+          });
+
+          // Add rate limit headers
+          response.headers.set("X-RateLimit-Remaining", String(rateLimitResult.remaining));
+          response.headers.set("X-RateLimit-Reset-In", String(rateLimitResult.resetIn));
+
+          const duration = Date.now() - startTime;
+          logInfo("Chat response streamed", { userId, threadId, duration });
+
+          return response;
+        } catch (error) {
+          if (error instanceof Errors.auth) {
+            return createErrorResponse(error, 401);
+          }
+          if (error instanceof Errors.validation) {
+            return createErrorResponse(error, 400);
+          }
+          logError(error, { context: "POST /api/chat" });
+          return createErrorResponse(error, 500);
         }
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
-
-        const gateway = createLovableAiGatewayProvider(key);
-        const model = gateway("google/gemini-3-flash-preview");
-
-        const tools = agentMode
-          ? {
-              web_search: tool({
-                description:
-                  "Search the public web via DuckDuckGo. Returns top results with title, url, and snippet.",
-                inputSchema: z.object({
-                  query: z.string().describe("Search query"),
-                }),
-                execute: async ({ query }) => {
-                  try {
-                    const results = await ddgSearch(query);
-                    return { query, results };
-                  } catch (e) {
-                    return { error: (e as Error).message, query };
-                  }
-                },
-              }),
-              fetch_url: tool({
-                description:
-                  "Fetch a URL and return its text content (HTML stripped, truncated to 4000 chars).",
-                inputSchema: z.object({ url: z.string().url() }),
-                execute: async ({ url }) => {
-                  try {
-                    const res = await fetch(url, {
-                      headers: { "User-Agent": "NovaAI/1.0" },
-                    });
-                    const ct = res.headers.get("content-type") ?? "";
-                    const raw = await res.text();
-                    const text = ct.includes("html")
-                      ? raw
-                          .replace(/<script[\s\S]*?<\/script>/gi, "")
-                          .replace(/<style[\s\S]*?<\/style>/gi, "")
-                          .replace(/<[^>]+>/g, " ")
-                          .replace(/\s+/g, " ")
-                          .trim()
-                      : raw;
-                    return {
-                      url,
-                      status: res.status,
-                      content: text.slice(0, 4000),
-                    };
-                  } catch (e) {
-                    return { error: (e as Error).message, url };
-                  }
-                },
-              }),
-              create_plan: tool({
-                description:
-                  "Emit a structured plan with ordered steps. Call this BEFORE working on complex tasks.",
-                inputSchema: z.object({
-                  goal: z.string(),
-                  steps: z.array(z.string()).min(2).max(10),
-                }),
-                execute: async ({ goal, steps }) => ({
-                  goal,
-                  steps,
-                  acknowledged: true,
-                }),
-              }),
-              run_calculation: tool({
-                description:
-                  "Safely evaluate a basic math expression (numbers and + - * / % ( ) . , only).",
-                inputSchema: z.object({ expression: z.string() }),
-                execute: async ({ expression }) => {
-                  if (!/^[\d+\-*/%().,\s]+$/.test(expression)) {
-                    return { error: "Unsafe expression" };
-                  }
-                  try {
-                    const result = Function(`"use strict"; return (${expression})`)();
-                    return { expression, result };
-                  } catch (e) {
-                    return { error: (e as Error).message };
-                  }
-                },
-              }),
-            }
-          : undefined;
-
-        const result = streamText({
-          model,
-          system: SYSTEM_BASE + (agentMode ? AGENT_ADDENDUM : ""),
-          messages: await convertToModelMessages(messages),
-          tools,
-          stopWhen: stepCountIs(50),
-        });
-
-        return result.toUIMessageStreamResponse({
-          originalMessages: messages,
-        });
       },
     },
   },

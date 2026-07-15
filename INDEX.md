@@ -4,7 +4,29 @@
 
 ### 🔧 Core Libraries
 
-#### 1. **types.server.ts** - Tipos centralizados
+#### 1. **apps.types.ts & apps-storage.ts** - Motor y Tipos de Build Apps (App Studio Workspace)
+
+```typescript
+import { AppManifest, AppFile, AppTemplateSchema } from "@/lib/apps.types";
+import { getSavedApps, saveAppToWorkspace, exportAppAsZipOrDownload } from "@/lib/apps-storage";
+```
+
+- ✅ Modelos tipados con Zod para aplicaciones interactivas multi-archivo (`React + Tailwind`, `HTML/Vanilla JS`).
+- ✅ Almacenamiento local persistente (`getSavedApps`, `saveAppToWorkspace`) y disparador de eventos en tiempo real.
+- ✅ Soporte para motor de ejecución sandboxed (`LivePreviewSandbox.tsx`) y entorno IDE a pantalla completa (`AppStudioModal.tsx`).
+
+#### 2. **settings-storage.ts, DataAnalyticsViewer & MermaidViewer** - Personalización y Visualizaciones AI
+
+```typescript
+import { getNovaSettings, saveNovaSettings } from "@/lib/settings-storage";
+import { MermaidViewer } from "@/components/chat/MermaidViewer";
+import { DataAnalyticsViewer } from "@/components/chat/DataAnalyticsViewer";
+```
+
+- ✅ Gestión de instrucciones personalizadas (`customInstructions`) que se inyectan dinámicamente en `api/chat.ts`.
+- ✅ Renderizador de diagramas de arquitectura (`Mermaid.js`) y gráficos estadísticos (`Recharts Bar/Line/Pie`) de datos tabulares.
+
+#### 3. **types.server.ts** - Tipos centralizados
 
 ```typescript
 import { Message, Thread, ErrorResponse } from "@/lib/types.server";

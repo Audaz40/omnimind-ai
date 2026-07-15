@@ -172,8 +172,246 @@ export const runCalculationPlugin: ToolPlugin = {
     }),
 };
 
+export const buildAppPlugin: ToolPlugin = {
+  name: "build_app",
+  description:
+    "Build a complete multi-file interactive application, web app, component, dashboard, or game. Always call this tool when the user requests building an app, component, website, tool, or prototype.",
+  enabled: () => true, // Enabled for all chat modes so users can always build apps!
+  create: () =>
+    tool({
+      description:
+        "Build a complete multi-file interactive application, web app, component, dashboard, or game with live sandbox preview.",
+      inputSchema: z.object({
+        appId: z.string().optional().describe("Optional unique identifier for the app"),
+        title: z.string().describe("Clear, catchy title of the application"),
+        description: z
+          .string()
+          .describe("Overview of what the app does and its key interactive features"),
+        template: z
+          .enum([
+            "react",
+            "html-js",
+            "nextjs",
+            "python",
+            "node",
+            "vue",
+            "svelte",
+            "web-app",
+            "rust",
+            "go",
+            "c",
+            "cpp",
+            "java",
+            "csharp",
+            "ruby",
+            "php",
+            "sql",
+            "bash",
+            "swift",
+            "kotlin",
+            "r",
+            "universal-code",
+          ])
+          .describe("Framework or runtime template best suited for this application"),
+        files: z
+          .array(
+            z.object({
+              path: z
+                .string()
+                .describe("Relative file path (e.g. 'src/App.tsx', 'index.html', 'styles.css')"),
+              language: z
+                .string()
+                .describe("Language extension (e.g. 'tsx', 'jsx', 'html', 'css', 'typescript')"),
+              content: z.string().describe("Complete, working source code of the file"),
+              description: z.string().optional().describe("Short explanation of the file's role"),
+            }),
+          )
+          .min(1)
+          .describe("List of complete source code files required to run the application"),
+        entryPoint: z
+          .string()
+          .optional()
+          .describe("Main file to render or start first (default: 'index.html' or 'src/App.tsx' or 'App.tsx')"),
+        dependencies: z
+          .array(z.string())
+          .optional()
+          .describe("List of external libraries needed (e.g. ['lucide-react', 'recharts', 'canvas-confetti'])"),
+        instructions: z
+          .string()
+          .optional()
+          .describe("Setup instructions or interactive guide for the user"),
+      }),
+      execute: async (input) => {
+        const appId =
+          input.appId || `app-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const entryPoint =
+          input.entryPoint ||
+          (input.files.find((f) => f.path.includes("App.tsx") || f.path.includes("index.html"))?.path ??
+            input.files[0]?.path ??
+            "index.html");
+
+        return {
+          acknowledged: true,
+          appId,
+          title: input.title,
+          description: input.description,
+          template: input.template,
+          files: input.files,
+          entryPoint,
+          dependencies: input.dependencies || [],
+          instructions:
+            input.instructions ||
+            "Your application has been generated and loaded into the interactive sandbox preview!",
+          status: "built",
+          createdAt: new Date().toISOString(),
+        };
+      },
+    }),
+};
+
+export const editAppPlugin: ToolPlugin = {
+  name: "edit_app",
+  description:
+    "Modify, enhance, or fix an existing built application by updating its code files or adding new interactive capabilities.",
+  enabled: () => true, // Enabled for all chat modes
+  create: () =>
+    tool({
+      description: "Modify or enhance an existing application's code and files.",
+      inputSchema: z.object({
+        appId: z.string().optional().describe("ID of the app being edited"),
+        title: z.string().describe("Updated title of the application"),
+        description: z
+          .string()
+          .describe("Summary of changes and enhancements made to the application"),
+        template: z
+          .enum([
+            "react",
+            "html-js",
+            "nextjs",
+            "python",
+            "node",
+            "vue",
+            "svelte",
+            "web-app",
+            "rust",
+            "go",
+            "c",
+            "cpp",
+            "java",
+            "csharp",
+            "ruby",
+            "php",
+            "sql",
+            "bash",
+            "swift",
+            "kotlin",
+            "r",
+            "universal-code",
+          ])
+          .describe("Framework or runtime template"),
+        files: z
+          .array(
+            z.object({
+              path: z.string().describe("Relative file path"),
+              language: z.string().describe("Language extension"),
+              content: z.string().describe("Complete, updated source code of the file"),
+              description: z.string().optional().describe("File description"),
+            }),
+          )
+          .min(1)
+          .describe("Updated list of all source code files in the application"),
+        entryPoint: z.string().optional().describe("Main file to run"),
+        dependencies: z
+          .array(z.string())
+          .optional()
+          .describe("Updated list of external libraries"),
+        instructions: z.string().optional().describe("Updated instructions or change notes"),
+      }),
+      execute: async (input) => {
+        const appId =
+          input.appId || `app-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const entryPoint =
+          input.entryPoint ||
+          (input.files.find((f) => f.path.includes("App.tsx") || f.path.includes("index.html"))?.path ??
+            input.files[0]?.path ??
+            "index.html");
+
+        return {
+          acknowledged: true,
+          appId,
+          title: input.title,
+          description: input.description,
+          template: input.template,
+          files: input.files,
+          entryPoint,
+          dependencies: input.dependencies || [],
+          instructions:
+            input.instructions ||
+            "Your application updates have been applied and loaded into the live preview!",
+          status: "updated",
+          updatedAt: new Date().toISOString(),
+        };
+      },
+    }),
+};
+
+export const generateDiagramPlugin: ToolPlugin = {
+  name: "generate_diagram",
+  description:
+    "Generate an interactive architecture, sequence, flowchart, class, state, or Gantt diagram using Mermaid.js syntax.",
+  enabled: () => true,
+  create: () =>
+    tool({
+      description: "Generate an interactive diagram using Mermaid syntax.",
+      inputSchema: z.object({
+        title: z.string().describe("Diagram title"),
+        diagramType: z
+          .enum(["flowchart", "sequence", "class", "state", "gantt", "architecture"])
+          .describe("Type of diagram"),
+        code: z.string().describe("Complete Mermaid code block (e.g., 'flowchart TD\n  A[Start] --> B[End]')"),
+        description: z.string().optional().describe("Brief explanation of the diagram"),
+      }),
+      execute: async (input) => ({
+        ...input,
+        acknowledged: true,
+        generatedAt: new Date().toISOString(),
+      }),
+    }),
+};
+
+export const analyzeTabularDataPlugin: ToolPlugin = {
+  name: "analyze_tabular_data",
+  description:
+    "Take structured JSON or CSV data and create interactive charts (bar, line, pie) and sortable data tables with Recharts.",
+  enabled: () => true,
+  create: () =>
+    tool({
+      description: "Create interactive data visualizations and sortable analytics tables.",
+      inputSchema: z.object({
+        title: z.string().describe("Visualization title"),
+        summary: z.string().describe("Brief analytical summary of insights from the data"),
+        chartType: z.enum(["bar", "line", "pie", "table"]).describe("Primary initial view"),
+        xAxisKey: z.string().describe("Property name to use for X axis labels"),
+        dataKeys: z.array(z.string()).min(1).describe("Property names of numeric columns to plot"),
+        data: z
+          .array(z.record(z.union([z.string(), z.number()])))
+          .min(1)
+          .describe("Array of data objects"),
+      }),
+      execute: async (input) => ({
+        ...input,
+        acknowledged: true,
+        analyzedAt: new Date().toISOString(),
+      }),
+    }),
+};
+
 // Register built-in plugins
 registerPlugin(webSearchPlugin);
 registerPlugin(fetchUrlPlugin);
 registerPlugin(createPlanPlugin);
 registerPlugin(runCalculationPlugin);
+registerPlugin(buildAppPlugin);
+registerPlugin(editAppPlugin);
+registerPlugin(generateDiagramPlugin);
+registerPlugin(analyzeTabularDataPlugin);

@@ -35,7 +35,6 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Validate inputs
       if (!email.trim()) {
         toast.error("Email is required");
         setLoading(false);
@@ -59,7 +58,6 @@ function AuthPage() {
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) {
-          // User-friendly error messages
           if (error.message.includes("already registered")) {
             toast.error("Email is already in use. Try signing in instead.");
           } else if (error.message.includes("Password")) {
@@ -69,11 +67,10 @@ function AuthPage() {
           }
           return;
         }
-        toast.success("Account created! Check your email to confirm.");
+        toast.success("Account created successfully! Welcome to NOVA.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          // User-friendly error messages
           if (error.message.includes("Invalid login credentials")) {
             toast.error("Email or password is incorrect");
           } else if (error.message.includes("Email not confirmed")) {
@@ -106,12 +103,11 @@ function AuthPage() {
         return;
       }
 
-      // If redirected, the OAuth flow will handle navigation
       if (res.redirected) {
         return;
       }
 
-      // If successful but not redirected, navigate to app
+      toast.success("Signed in with Google successfully!");
       navigate({ to: "/app" });
     } catch (err) {
       toast.error((err as Error).message ?? "Google sign in failed");
@@ -127,24 +123,25 @@ function AuthPage() {
     >
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="size-10 rounded-2xl bg-muted flex items-center justify-center">
+          <div className="size-10 rounded-2xl bg-muted flex items-center justify-center shadow-inner">
             <Sparkles className="size-5 text-primary" />
           </div>
           <span className="text-2xl font-semibold tracking-tight">NOVA</span>
         </Link>
-        <div className="rounded-3xl border bg-card p-8">
+        <div className="rounded-3xl border bg-card p-8 shadow-xl">
           <h1 className="text-2xl font-semibold tracking-tight">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {mode === "signin" ? "Sign in to continue to NOVA." : "Free, no credit card."}
+            {mode === "signin" ? "Sign in to continue to NOVA." : "Free, instant access. No credit card required."}
           </p>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full mt-6 h-11"
+            className="w-full mt-6 h-11 transition hover:bg-accent/60"
             onClick={handleGoogle}
+            disabled={loading}
           >
             <svg className="size-4 mr-2" viewBox="0 0 48 48">
               <path
@@ -177,9 +174,12 @@ function AuthPage() {
               <Input
                 id="email"
                 type="email"
+                name="email"
+                autoComplete="username email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                placeholder="name@example.com"
                 className="mt-1"
               />
             </div>
@@ -188,6 +188,8 @@ function AuthPage() {
               <Input
                 id="password"
                 type="password"
+                name="password"
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -204,17 +206,17 @@ function AuthPage() {
             </div>
             <Button
               type="submit"
-              className="w-full h-11 bg-primary text-primary-foreground border-0"
+              className="w-full h-11 bg-primary text-primary-foreground border-0 transition hover:opacity-90"
               disabled={loading || !email || !password || password.length < 6}
             >
-              {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
+              {loading ? "Authenticating..." : mode === "signin" ? "Sign in" : "Create account"}
             </Button>
           </form>
 
           <button
             type="button"
             onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
-            className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
+            className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground underline transition"
           >
             {mode === "signin"
               ? "Don't have an account? Sign up"

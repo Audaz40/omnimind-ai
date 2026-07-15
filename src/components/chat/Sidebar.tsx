@@ -1,18 +1,22 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, MessageSquare, Trash2, LogOut, Sparkles } from "lucide-react";
+import { Plus, MessageSquare, Trash2, LogOut, Sparkles, Layers, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createThread, deleteThread, listThreads } from "@/lib/threads.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { AppsGalleryModal } from "@/components/apps/AppsGalleryModal";
+import { UserSettingsModal } from "@/components/chat/UserSettingsModal";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const params = useParams({ strict: false }) as { threadId?: string };
   const activeId = params.threadId;
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const list = useServerFn(listThreads);
   const create = useServerFn(createThread);
@@ -53,7 +57,7 @@ export function Sidebar() {
 
   return (
     <aside className="w-72 shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border">
-      <div className="p-4">
+      <div className="p-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <div className="size-8 rounded-xl bg-muted flex items-center justify-center">
             <Sparkles className="size-4 text-primary" />
@@ -61,14 +65,32 @@ export function Sidebar() {
           <span className="font-semibold tracking-tight">NOVA</span>
         </Link>
       </div>
-      <div className="px-3">
+      <div className="px-3 space-y-1.5">
         <Button onClick={onNew} className="w-full bg-primary text-primary-foreground border-0">
           <Plus className="size-4 mr-1" /> New chat
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsGalleryOpen(true)}
+          className="w-full border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent text-sidebar-foreground justify-start gap-2 text-xs"
+        >
+          <Layers className="size-3.5 text-primary" />
+          <span>Apps Studio & Artifacts</span>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsSettingsOpen(true)}
+          className="w-full border-sidebar-border bg-sidebar-accent/20 hover:bg-sidebar-accent text-sidebar-foreground justify-start gap-2 text-xs"
+        >
+          <Settings className="size-3.5 text-zinc-400" />
+          <span>Personalization & Settings</span>
         </Button>
       </div>
       <div className="mt-4 px-2 flex-1 overflow-y-auto">
         <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 px-2 mb-1">
-          Recent
+          Recent Chats
         </div>
         <div className="space-y-0.5">
           {threads.map((t) => (
@@ -113,6 +135,19 @@ export function Sidebar() {
           <LogOut className="size-4 mr-2" /> Sign out
         </Button>
       </div>
+
+      <AppsGalleryModal
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        onSelectStarterPrompt={(prompt) => {
+          window.dispatchEvent(new CustomEvent("nova:ask-change", { detail: { prompt } }));
+        }}
+      />
+
+      <UserSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </aside>
   );
 }

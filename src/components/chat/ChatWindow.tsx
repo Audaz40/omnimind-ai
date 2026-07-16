@@ -10,6 +10,7 @@ import { ToolPart } from "./ToolPart";
 import { AppsGalleryModal } from "@/components/apps/AppsGalleryModal";
 import { UserSettingsModal } from "@/components/chat/UserSettingsModal";
 import { getNovaSettings } from "@/lib/settings-storage";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -60,10 +61,12 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
     messages: initialMessages ?? [],
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      headers: () => {
+      headers: async () => {
         const settings = getNovaSettings();
+        const { data: { session } } = await supabase.auth.getSession();
         return {
           "x-custom-instructions": settings.customInstructions || "",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         };
       },
       body: () => ({ agentMode, threadId }),
@@ -269,7 +272,7 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <header className="h-14 border-b flex items-center justify-between px-5 bg-background">
+      <header className="h-14 flex items-center justify-between px-5 bg-background">
         <div className="flex items-center gap-3">
           <div className="size-7 rounded-lg bg-muted flex items-center justify-center">
             <Sparkles className="size-3.5 text-primary" />
@@ -395,7 +398,7 @@ export function ChatWindow({ threadId, initialMessages, initialAgentMode }: Prop
         </div>
       </div>
 
-      <div className="border-t bg-background">
+      <div className="bg-background">
         <form onSubmit={onSubmit} className="max-w-3xl mx-auto p-4">
           <div className="relative rounded-2xl border bg-card focus-within:ring-2 focus-within:ring-ring transition flex items-center">
             <Textarea

@@ -200,6 +200,10 @@ export function AppsGalleryModal({ isOpen, onClose, onSelectStarterPrompt }: Pro
             setSelectedApp(updated);
             loadApps();
           }}
+          onAskNova={(prompt) => {
+            onClose();
+            window.dispatchEvent(new CustomEvent("nova:ask-change", { detail: { prompt } }));
+          }}
         />
       </DialogContent>
     </Dialog>
